@@ -12,3 +12,9 @@ This presentation will start with an introduction to time series analysis using 
 
 ## Time Series Analysis in SAS Studio and Visual Forecasting
 In this follow-up presentation, we will finish our discussion of the creation of models such as exponential smoothing, ARIMAX, and unobserved components models. We will then explore the Visual Forecasting interface within SAS Model Studio. We will discuss setting up a project and the creation of models within this interface. A comparison of the SAS Studio and the SAS Model Studio interfaces will be made.
+
+--------------------------------------------------------------------------------------------------------------
+
+Scan this QR code to access the presenter's digital business card.
+
+<img width="180" height="176" alt="image" src="https://github.com/user-attachments/assets/95b4ca30-2f64-4d56-baa1-851e1a72393a" />
