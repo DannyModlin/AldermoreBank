@@ -1,0 +1,168 @@
+*Time Series Creation;
+*Examining the Data on an Hourly Interval;
+
+libname STSM "/export/viya/homes/danny.modlin@sas.com/UKTimeSeries/Data";
+
+
+proc sort data=STSM.CH1_DEMODAT out=Work.preProcessedData;
+   by dtdate;
+run;
+
+proc timeseries data=Work.preProcessedData seasonality=24 
+                plots=(series corr);
+   id dtdate interval=hour;
+   var units / accumulate=total transform=none dif=0 sdif=0;
+run;
+
+/* Alternative if the data is properly sorted already
+
+proc timeseries data=stsm.ch1_demodat out=out_totalhour
+                plots=(series);
+   id dtdate interval=dthour accumulate=total;
+   var units;
+run;
+
+*/
+
+* Truncates the data within the plots;
+proc timeseries data=Work.preProcessedData seasonality=24
+                plots=(series corr);
+   id dtdate interval=hour end='12jan2004:00:00'dt;
+   var units / accumulate=total transform=none dif=0 sdif=0;
+run;
+
+*Creating the Time Series on a Monthly Interval;
+proc timeseries data=stsm.ch1_demodat out=out_totalmonth
+                plots=(series);
+   id date interval=month accumulate=total;
+   var units;
+run;
+
+*Accumulates on an average rather than a sum;
+proc timeseries data=stsm.ch1_demodat out=out_totalmonth
+                plots=(series);
+   id date interval=month accumulate=average;
+   var units;
+run;
+
+
+*Time Series Identification;
+proc timeseries data=stsm.ch1_demodat out=out_totalmonth
+                outdecomp=decomp_total
+                print=(descstats seasons decomp)
+                plot=(series corr tc sc ic);
+   id date interval=month accumulate=average;
+   var units;
+run;
+
+
+*Autocorrelation;
+proc timeseries data=STSM.solarpv
+                seasonality=52
+                plots=(series acf wn);
+   id EDT interval=week;
+   var kW_Gen;
+   ods exclude ACFNORMPlot WhiteNoiseProbabilityPlot;
+run;
+
+
+*Exponential Smoothing Model;
+proc timeseries data=STSM.SST
+                seasonality=12
+                plots=(series cycles corr wn
+                       decomp sa pcsa tc sc);
+   id Datechk interval=month;
+   var temp;
+   decomp sa pcsa tc sc / mode=multoradd;
+   ods exclude WhiteNoiseProbabilityPlot;
+run;
+
+*Additive Seasonal Model;
+proc esm data=STSM.SST
+         back=0 lead=12
+         seasonality=12
+         plot=(corr errors modelforecasts)
+         outstat=WORK.outstat;
+   id Datechk interval=month;
+   forecast temp / alpha=0.05 model=addseasonal;
+run;
+proc print data=WORK.outstat;
+    var AIC SBC;
+run;
+
+*Additive Winters model;
+proc esm data=STSM.SST
+         back=0 lead=12
+         seasonality=12
+         plot=(corr errors modelforecasts)
+         outstat=WORK.outstat2;
+   id Datechk interval=month;
+   forecast temp / alpha=0.05 model=addwinters;
+run;
+proc print data=WORK.outstat2;
+   var AIC SBC;
+run;
+
+*Determining Autoregressive Order (ARIMA Models);
+proc timeseries data=STSM.SOLARPV plots=(corr);
+   id EDT interval=week;
+   var kW_Gen;
+run;
+
+*Estimation of an ARIMAX Model;
+proc arima data=STSM.SOLARPV 
+           plots(only)=(series(corr) residual(corr normal));
+   identify var=kW_Gen;
+   estimate p=(1) method=ML;
+quit;
+
+*Using Input Variables in ARIMAX Models;
+proc timeseries data=STSM.SOLARPV 
+                crossplots=(series ccf);
+   id EDT interval=week;
+   var kW_Gen;
+   crossvar Cloud_Cover cosval;
+   ods exclude CCFNORMPlot;
+run;
+
+*Estimation of Input Variables in ARIMAX Models;
+proc arima data=STSM.SOLARPV
+           plots(only)=(series(corr crosscorr)
+                        residual(corr normal));
+   identify var=kW_Gen crosscorr=(Cloud_Cover);
+   estimate p=(1) input=(Cloud_Cover) method=ML;
+   run;
+
+proc arima data=STSM.SOLARPV plots(only)=(residual(corr normal));
+   identify var=kW_Gen crosscorr=(cosval);
+   estimate p=(1) input=(cosval) method=ML;
+   forecast lead=0 back=0 alpha=0.05 id=EDT interval=week;
+   run;
+quit;
+
+proc arima data=STSM.SOLARPV plots(only)=(residual(corr normal) );
+   identify var=kW_Gen crosscorr=(cosval Cloud_Cover);
+   estimate p=(1) input=(cosval Cloud_Cover) method=ML;
+   forecast lead=0 back=0 alpha=0.05 id=EDT interval=week;
+   run;
+quit;
+
+*Unobserved Components Model;
+proc timeseries data=stsm.CH1_DEMODAT seasonality=12
+                out=stsm.UNITS_MONTH;
+   id date interval=month;
+   var units / accumulate=average transform=none dif=0 sdif=0;
+run;
+/* Build and Explore a UCM */
+proc ucm data=stsm.UNITS_MONTH;
+   id date interval=month;
+   model units;
+   irregular plot=smooth;
+   level plot=(smooth);
+   slope plot=(smooth);
+   season length=12 type=dummy plot=(smooth);
+   estimate plot=(panel model loess);
+   forecast lead=12 back=0 alpha=0.05 plot=(forecasts);
+   outlier;
+run;
+
