@@ -1,6 +1,10 @@
 # AldermoreBank
 Two Lunch and Learn Sessions on Time Series
 
+Link to TIMESERIES documentation:
+https://support.sas.com/documentation/onlinedoc/ets/151/timeseries.pdf
+
+
 
 ### Tuesday, July 14th Presentation:
 
